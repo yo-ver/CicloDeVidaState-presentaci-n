@@ -1,0 +1,708 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Ciclo de Vida State</title>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #16416e;
+    --navy-deep: #0e2c4c;
+    --cyan: #00b6d9;
+    --cyan-soft: #e3f7fb;
+    --amber: #b9861f;
+    --amber-soft: #fbf1dd;
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --surface-2: #eef2f6;
+    --ink: #16202b;
+    --ink-soft: #55636f;
+    --line: #dbe2e8;
+    --code-bg: #101826;
+    --code-ink: #d7e2ea;
+    --once: #16416e;
+    --repeat: #0b7a5b;
+    --repeat-soft: #e2f5ee;
+    --cond: #b9861f;
+    --cond-soft: #fbf1dd;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --navy: #6fb1e6;
+      --navy-deep: #cfe6fa;
+      --cyan: #3fd6f5;
+      --cyan-soft: #103240;
+      --amber: #e6bd63;
+      --amber-soft: #3a2f14;
+      --bg: #0f151c;
+      --surface: #161f29;
+      --surface-2: #1d2833;
+      --ink: #e8edf2;
+      --ink-soft: #a7b3bd;
+      --line: #2a3641;
+      --once: #6fb1e6;
+      --repeat: #4fd19b;
+      --repeat-soft: #123326;
+      --cond: #e6bd63;
+      --cond-soft: #3a2f14;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --navy: #6fb1e6;
+    --navy-deep: #cfe6fa;
+    --cyan: #3fd6f5;
+    --cyan-soft: #103240;
+    --amber: #e6bd63;
+    --amber-soft: #3a2f14;
+    --bg: #0f151c;
+    --surface: #161f29;
+    --surface-2: #1d2833;
+    --ink: #e8edf2;
+    --ink-soft: #a7b3bd;
+    --line: #2a3641;
+    --once: #6fb1e6;
+    --repeat: #4fd19b;
+    --repeat-soft: #123326;
+    --cond: #e6bd63;
+    --cond-soft: #3a2f14;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    padding-inline: 16px;
+  }
+  h1, h2, h3, .display { font-family: "Manrope", system-ui, sans-serif; text-wrap: balance; }
+  code, .mono { font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+
+  .shell { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px; }
+
+  header.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+    justify-content: space-between;
+    padding-block: 6px 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 22px;
+  }
+  .brand { display: flex; flex-direction: column; gap: 2px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--cyan); font-weight: 600;
+  }
+  .brand h1 { font-size: clamp(22px, 3vw, 30px); margin: 0; color: var(--navy-deep); font-weight: 800; }
+  .brand p { margin: 2px 0 0; color: var(--ink-soft); font-size: 14px; }
+
+  .mode-toggle {
+    display: flex; background: var(--surface-2); border-radius: 999px; padding: 4px; gap: 2px;
+    border: 1px solid var(--line);
+  }
+  .mode-toggle button {
+    border: none; background: transparent; padding: 9px 18px; border-radius: 999px;
+    font-family: "Manrope", sans-serif; font-weight: 700; font-size: 13.5px; color: var(--ink-soft);
+    cursor: pointer; transition: background .15s, color .15s;
+  }
+  .mode-toggle button.active { background: var(--navy); color: #fff; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---------- DIAGRAM VIEW ---------- */
+  .diagram-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 340px) 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 780px) {
+    .diagram-layout { grid-template-columns: 1fr; }
+  }
+
+  .rail-wrap {
+    position: sticky;
+    top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  @media (max-width: 780px) { .rail-wrap { position: static; } }
+
+  .mounted-strip {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px 14px; margin-bottom: 14px; font-size: 13px; color: var(--ink-soft);
+  }
+  .mounted-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex-shrink: 0; transition: background .2s; }
+  .mounted-dot.on { background: var(--repeat); box-shadow: 0 0 0 4px var(--repeat-soft); }
+  .mounted-strip b { color: var(--ink); font-family: "JetBrains Mono", monospace; font-size: 13px; }
+
+  .rail { list-style: none; margin: 0; padding: 0; position: relative; }
+  .rail::before {
+    content: ""; position: absolute; left: 17px; top: 8px; bottom: 8px; width: 2px;
+    background: var(--line);
+  }
+  .rail li { position: relative; }
+  .rail button.node {
+    all: unset;
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 9px 10px 9px 0; cursor: pointer; border-radius: 10px;
+  }
+  .rail button.node:hover { background: var(--surface-2); }
+  .rail button.node:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .node-dot {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: var(--surface); border: 2px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Manrope", sans-serif; font-weight: 800; font-size: 13px; color: var(--ink-soft);
+    position: relative; z-index: 1; transition: all .15s;
+  }
+  .node-label { font-size: 14.5px; font-weight: 600; color: var(--ink); font-family: "JetBrains Mono", monospace; }
+  .node-sub { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+  .rail button.node.selected .node-dot {
+    background: var(--navy); border-color: var(--navy); color: #fff;
+  }
+  .rail button.node.selected .node-label { color: var(--navy-deep); }
+
+  .branch-note {
+    margin: 2px 0 2px 48px; font-size: 12px; color: var(--cond); background: var(--cond-soft);
+    border-radius: 8px; padding: 5px 10px; display: inline-block;
+  }
+  .loop-note {
+    margin: 2px 0 10px 48px; font-size: 12px; color: var(--repeat); background: var(--repeat-soft);
+    border-radius: 8px; padding: 5px 10px; display: inline-block;
+  }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 26px 28px; min-height: 420px;
+  }
+  @media (max-width: 480px) { .panel { padding: 20px 18px; } }
+
+  .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+  .panel-head h2 { margin: 0; font-size: clamp(20px, 2.6vw, 26px); color: var(--navy-deep); font-family: "JetBrains Mono", monospace; font-weight: 700; }
+  .badge {
+    font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 5px 11px; border-radius: 999px; white-space: nowrap; font-family: "Manrope", sans-serif;
+  }
+  .badge.once { background: var(--cyan-soft); color: var(--once); }
+  .badge.repeat { background: var(--repeat-soft); color: var(--repeat); }
+  .badge.cond { background: var(--cond-soft); color: var(--cond); }
+
+  .panel-intro { color: var(--ink-soft); font-size: 15px; margin: 10px 0 18px; }
+  .panel p { line-height: 1.6; font-size: 15.5px; margin: 0 0 14px; }
+  .panel ul { margin: 0 0 14px; padding-left: 20px; line-height: 1.6; font-size: 15px; }
+  .panel ul li { margin-bottom: 6px; }
+
+  pre.code {
+    background: var(--code-bg); color: var(--code-ink); border-radius: 12px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.55;
+    margin: 0 0 16px;
+  }
+  pre.code .cm { color: #7f92a5; }
+
+  .callout {
+    border-radius: 12px; padding: 14px 16px; margin: 0 0 16px; font-size: 14.5px; line-height: 1.55;
+  }
+  .callout.warn { background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent); }
+  .callout.warn strong { color: var(--amber); }
+  .callout.rule { background: var(--cyan-soft); border: 1px solid color-mix(in srgb, var(--cyan) 35%, transparent); }
+  .callout.rule strong { color: var(--navy); }
+
+  .panel-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
+  .panel-nav button {
+    font-family: "Manrope", sans-serif; font-weight: 700; font-size: 13.5px;
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 9px 16px; border-radius: 10px; cursor: pointer;
+  }
+  .panel-nav button:hover { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .panel-nav button:disabled { opacity: .4; cursor: default; background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+
+  /* ---------- QUIZ VIEW ---------- */
+  .quiz-wrap { max-width: 720px; margin: 0 auto; }
+  .quiz-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .quiz-progress { font-size: 13px; color: var(--ink-soft); font-family: "JetBrains Mono", monospace; }
+  .quiz-shuffle {
+    font-family: "Manrope", sans-serif; font-weight: 700; font-size: 13px; color: var(--navy);
+    background: var(--cyan-soft); border: none; padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  }
+  .quiz-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 26px 28px; }
+  @media (max-width: 480px) { .quiz-card { padding: 20px 18px; } }
+  .quiz-q { font-size: 18px; font-weight: 700; font-family: "Manrope", sans-serif; margin: 0 0 18px; color: var(--ink); line-height: 1.4; }
+  .quiz-opts { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+  .quiz-opt {
+    text-align: left; border: 1.5px solid var(--line); background: var(--surface-2);
+    border-radius: 11px; padding: 12px 14px; font-size: 14.5px; cursor: pointer; color: var(--ink);
+    font-family: "Source Sans 3", sans-serif;
+  }
+  .quiz-opt:hover { border-color: var(--navy); }
+  .quiz-opt.correct { background: var(--repeat-soft); border-color: var(--repeat); font-weight: 600; }
+  .quiz-opt.wrong { background: var(--cond-soft); border-color: var(--cond); }
+  .quiz-opt:disabled { cursor: default; }
+  .quiz-explain {
+    margin-top: 16px; background: var(--surface-2); border-radius: 12px; padding: 14px 16px;
+    font-size: 14px; line-height: 1.55; color: var(--ink-soft); display: none;
+  }
+  .quiz-explain.show { display: block; }
+  .quiz-explain b { color: var(--ink); }
+  .quiz-nav { display: flex; justify-content: space-between; margin-top: 20px; }
+  .quiz-nav button {
+    font-family: "Manrope", sans-serif; font-weight: 700; font-size: 14px;
+    background: var(--navy); color: #fff; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;
+  }
+  .quiz-nav button:disabled { opacity: .35; cursor: default; }
+  .quiz-done { text-align: center; padding: 40px 20px; }
+  .quiz-done .score { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 44px; color: var(--navy-deep); }
+</style>
+
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">SIS048 · Desarrollo de Software II · Sesión 12</span>
+      <h1>Ciclo de vida de State</h1>
+      <p>StatefulWidget en profundidad — de createState() a dispose()</p>
+    </div>
+    <div class="mode-toggle" role="tablist">
+      <button id="tab-diagram" class="active" role="tab" aria-selected="true">Diagrama</button>
+      <button id="tab-quiz" role="tab" aria-selected="false">Quiz en vivo</button>
+    </div>
+  </header>
+
+  <!-- DIAGRAM VIEW -->
+  <section id="view-diagram" class="view active">
+    <div class="diagram-layout">
+      <div class="rail-wrap">
+        <div class="mounted-strip">
+          <span class="mounted-dot" id="mountedDot"></span>
+          <span>mounted = <b id="mountedVal">false</b></span>
+        </div>
+        <ul class="rail" id="rail"></ul>
+      </div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </section>
+
+  <!-- QUIZ VIEW -->
+  <section id="view-quiz" class="view">
+    <div class="quiz-wrap">
+      <div class="quiz-top">
+        <span class="quiz-progress" id="quizProgress">Pregunta 1 / 8</span>
+        <button class="quiz-shuffle" id="quizShuffle">Barajar de nuevo</button>
+      </div>
+      <div class="quiz-card" id="quizCard"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var nodes = [
+    {
+      id: "constructor",
+      short: "1",
+      label: "Constructor",
+      sub: "StatefulWidget",
+      title: "Constructor de StatefulWidget",
+      badge: null,
+      intro: "Punto de partida: en algún lugar del árbol, un widget padre escribe <code>Contador()</code> y Flutter necesita mostrarlo por primera vez.",
+      body: [
+        "Como cualquier StatelessWidget, el constructor de un StatefulWidget solo recibe configuración inmutable (por ejemplo un <code>key</code>). Nada de lo que ocurre después modifica esos valores.",
+        "Lo que distingue a este widget es que, apenas se construye, el framework le exige devolver un objeto <code>State</code> asociado — eso es exactamente lo que hace el siguiente paso, <code>createState()</code>."
+      ]
+    },
+    {
+      id: "createState",
+      short: "2",
+      label: "createState()",
+      sub: "obligatorio · una sola vez",
+      title: "createState()",
+      badge: { text: "Una sola vez", type: "once" },
+      intro: "Es el primer método que Flutter invoca, inmediatamente después de construirse el StatefulWidget.",
+      body: [
+        "Su única responsabilidad es devolver una nueva instancia de la clase <code>State</code> asociada. Es obligatorio implementarlo — Dart no compila un StatefulWidget sin él — y casi nunca contiene lógica más allá de un <code>return</code>."
+      ],
+      code: "@override\nState&lt;ContadorFavoritos&gt; createState() =&gt; _ContadorFavoritosState();"
+    },
+    {
+      id: "mounted-true",
+      short: "3",
+      label: "mounted = true",
+      sub: "vinculación con BuildContext",
+      title: "Vinculación con BuildContext",
+      badge: { text: "Automático", type: "once" },
+      intro: "Inmediatamente después de createState(), el framework asocia el nuevo objeto State con un BuildContext específico del árbol de elementos.",
+      body: [
+        "A partir de este punto, la propiedad <code>mounted</code> del State pasa a valer <code>true</code>, lo que habilita el uso seguro de <code>setState()</code> y del propio <code>context</code>.",
+        "Antes de este punto, cualquier intento de usar <code>context</code> lanzaría una excepción."
+      ]
+    },
+    {
+      id: "initState",
+      short: "4",
+      label: "initState()",
+      sub: "inicialización · una sola vez",
+      title: "initState()",
+      badge: { text: "Una sola vez", type: "once" },
+      intro: "Las subclases de State deben sobrescribir initState() para realizar la inicialización que depende del BuildContext o del widget.",
+      body: [
+        "Este método se ejecuta exactamente una vez durante toda la vida del objeto State, y es el lugar correcto para:",
+      ],
+      list: [
+        "Inicializar controladores (por ejemplo, <code>TextEditingController</code> o <code>AnimationController</code>).",
+        "Suscribirse a Streams, ChangeNotifiers, o cualquier fuente de datos externa.",
+        "Asignar valores iniciales a variables de estado que dependan de <code>widget.algunaPropiedad</code>."
+      ],
+      code: "@override\nvoid initState() {\n  super.initState(); <span class=\"cm\">// SIEMPRE primero</span>\n  _controlador = TextEditingController(text: widget.valorInicial);\n}",
+      warning: "Dentro de <code>initState()</code> no se debe llamar a <code>Theme.of(context)</code>, <code>MediaQuery.of(context)</code> ni a ninguna otra búsqueda de un InheritedWidget: en ese momento el widget aún no está completamente conectado al árbol de forma segura para esas consultas. Ese código va en <code>didChangeDependencies()</code> o en <code>build()</code>."
+    },
+    {
+      id: "didChangeDependencies",
+      short: "5",
+      label: "didChangeDependencies()",
+      sub: "al menos una vez · puede repetirse",
+      title: "didChangeDependencies()",
+      badge: { text: "Repetible", type: "repeat" },
+      intro: "Se invoca inmediatamente después de initState() por primera vez, y luego cada vez que las dependencias cambian.",
+      body: [
+        "Es decir, cada vez que un InheritedWidget del que este State depende (un <code>Theme</code>, un <code>MediaQuery</code>, un <code>Provider</code>) notifica un cambio.",
+        "Es el lugar recomendado para realizar operaciones que sí necesitan acceder de forma segura al árbol de InheritedWidgets — justo lo que <code>initState()</code> no puede hacer."
+      ]
+    },
+    {
+      id: "build",
+      short: "6",
+      label: "build()",
+      sub: "obligatorio · se repite muchas veces",
+      title: "build()",
+      badge: { text: "Se repite muchas veces", type: "repeat" },
+      intro: "En este punto el objeto State está completamente inicializado y el framework puede llamar a build() cualquier cantidad de veces.",
+      body: [
+        "Es el único método verdaderamente obligatorio de toda la clase State. Su tarea exclusiva es describir la interfaz actual a partir de dos fuentes: la configuración del widget (<code>widget.propiedad</code>) y las variables de estado internas.",
+        "Cada llamada a <code>setState()</code> vuelve directamente aquí — no pasa de nuevo por <code>initState()</code> — porque el objeto State ya existe y solo necesita redibujarse con los nuevos valores."
+      ],
+      rule: "build() debe ser una función pura desde el punto de vista de efectos secundarios: no debe modificar variables de estado, no debe llamar a setState(), y no debe realizar operaciones costosas (peticiones de red, lectura de archivos)."
+    },
+    {
+      id: "didUpdateWidget",
+      short: "7",
+      label: "didUpdateWidget()",
+      sub: "condicional · reconstrucción del padre",
+      title: "didUpdateWidget(covariant T oldWidget)",
+      badge: { text: "Condicional", type: "cond" },
+      intro: "Se invoca cuando el widget padre se reconstruye y produce una nueva instancia del mismo StatefulWidget, en la misma posición del árbol.",
+      body: [
+        "Flutter reutiliza el objeto State existente — no lo destruye — pero necesita informarle que la configuración pudo haber cambiado.",
+        "El parámetro <code>oldWidget</code> permite comparar los valores anteriores con los nuevos (accesibles vía <code>widget</code>) para decidir si hace falta reinicializar controladores, cancelar suscripciones antiguas o resuscribirse a una nueva fuente de datos.",
+        "Después de didUpdateWidget(), Flutter vuelve a llamar a build()."
+      ]
+    },
+    {
+      id: "deactivate",
+      short: "8",
+      label: "deactivate()",
+      sub: "condicional · raramente usado",
+      title: "deactivate()",
+      badge: { text: "Condicional", type: "cond" },
+      intro: "Se ejecuta cuando el subárbol que contiene este State se retira del árbol de widgets.",
+      body: [
+        "Es un método raramente utilizado en código de aplicación típico, porque en la gran mayoría de los casos un widget desactivado nunca vuelve a insertarse y el siguiente paso natural es <code>dispose()</code>.",
+        "En los casos poco comunes en que el widget sí se reinserta en otra parte del árbol, Flutter puede volver a llamar a build() sin pasar por dispose()."
+      ]
+    },
+    {
+      id: "dispose",
+      short: "9",
+      label: "dispose()",
+      sub: "definitivo · una sola vez",
+      title: "dispose()",
+      badge: { text: "Una sola vez, definitivo", type: "once" },
+      intro: "Es la contraparte de initState(): se invoca cuando el objeto State se elimina permanentemente del árbol y nunca volverá a construirse.",
+      body: [
+        "Después de dispose(), <code>mounted</code> pasa a valer <code>false</code> para siempre, y cualquier llamada a <code>setState()</code> lanzará una excepción.",
+        "Es el lugar correcto — y obligatorio, cuando aplica — para:"
+      ],
+      list: [
+        "Liberar <code>TextEditingController</code> y <code>FocusNode</code> con <code>.dispose()</code>.",
+        "Cancelar <code>StreamSubscription</code> con <code>.cancel()</code>.",
+        "Detener <code>AnimationController</code> con <code>.dispose()</code>.",
+        "Cualquier otra limpieza de recursos que, de omitirse, provocaría una fuga de memoria."
+      ],
+      code: "@override\nvoid dispose() {\n  _controlador.dispose(); <span class=\"cm\">// liberar el recurso</span>\n  super.dispose(); <span class=\"cm\">// SIEMPRE al final</span>\n}"
+    },
+    {
+      id: "destroyed",
+      short: "10",
+      label: "Objeto destruido",
+      sub: "fin del ciclo",
+      title: "Objeto State destruido",
+      badge: { text: "Fin", type: "once" },
+      intro: "El objeto State deja de existir. mounted permanece en false para siempre.",
+      body: [
+        "Un error extremadamente común entre estudiantes que recién aprenden Flutter es llamar a <code>setState()</code> después de que el usuario navegó a otra pantalla y el widget original ya fue destruido. Flutter detecta esto y lanza una excepción en tiempo de ejecución.",
+        "La propiedad <code>mounted</code> es la forma segura de verificar, antes de llamar a <code>setState()</code> dentro de un callback asíncrono, si el objeto State todavía forma parte del árbol."
+      ],
+      code: "Future&lt;void&gt; _cargarDatos() async {\n  final datos = await miServicio.obtenerDatos();\n  if (!mounted) return; <span class=\"cm\">// verificación de seguridad</span>\n  setState(() {\n    _datos = datos;\n  });\n}"
+    }
+  ];
+
+  var branchNotes = {
+    build: "setState() vuelve aquí directamente, sin pasar por initState()",
+    didUpdateWidget: "se activa solo si el padre reconstruye con una NUEVA instancia del MISMO tipo, en la MISMA posición"
+  };
+
+  var rail = document.getElementById("rail");
+  var panel = document.getElementById("panel");
+  var mountedDot = document.getElementById("mountedDot");
+  var mountedVal = document.getElementById("mountedVal");
+  var current = 0;
+
+  function mountedStateFor(idx) {
+    // becomes true at "mounted-true" node, false again at "destroyed"
+    var id = nodes[idx].id;
+    if (id === "constructor" || id === "createState") return false;
+    if (id === "destroyed") return false;
+    return true;
+  }
+
+  function renderRail() {
+    rail.innerHTML = "";
+    nodes.forEach(function (n, i) {
+      var li = document.createElement("li");
+      var btn = document.createElement("button");
+      btn.className = "node" + (i === current ? " selected" : "");
+      btn.setAttribute("data-idx", i);
+      btn.innerHTML =
+        '<span class="node-dot">' + n.short + '</span>' +
+        '<span><span class="node-label">' + n.label + '</span>' +
+        '<div class="node-sub">' + n.sub + '</div></span>';
+      btn.addEventListener("click", function () { select(i); });
+      li.appendChild(btn);
+      rail.appendChild(li);
+
+      if (n.id === "build") {
+        var loop = document.createElement("div");
+        loop.className = "loop-note";
+        loop.textContent = "↻ " + branchNotes.build;
+        rail.appendChild(loop);
+      }
+      if (n.id === "didUpdateWidget") {
+        var cond = document.createElement("div");
+        cond.className = "branch-note";
+        cond.textContent = "⤷ " + branchNotes.didUpdateWidget;
+        rail.appendChild(cond);
+      }
+    });
+  }
+
+  function renderPanel() {
+    var n = nodes[current];
+    var html = '<div class="panel-head"><h2>' + n.title + '</h2>';
+    if (n.badge) {
+      html += '<span class="badge ' + n.badge.type + '">' + n.badge.text + '</span>';
+    }
+    html += '</div>';
+    html += '<p class="panel-intro">' + n.intro + '</p>';
+    n.body.forEach(function (p) { html += '<p>' + p + '</p>'; });
+    if (n.list) {
+      html += '<ul>' + n.list.map(function (l) { return '<li>' + l + '</li>'; }).join("") + '</ul>';
+    }
+    if (n.code) {
+      html += '<pre class="code">' + n.code + '</pre>';
+    }
+    if (n.warning) {
+      html += '<div class="callout warn"><strong>Advertencia — </strong>' + n.warning + '</div>';
+    }
+    if (n.rule) {
+      html += '<div class="callout rule"><strong>Regla de oro — </strong>' + n.rule + '</div>';
+    }
+    html += '<div class="panel-nav">' +
+      '<button id="prevBtn"' + (current === 0 ? " disabled" : "") + '>← Anterior</button>' +
+      '<button id="nextBtn"' + (current === nodes.length - 1 ? " disabled" : "") + '>Siguiente →</button>' +
+      '</div>';
+    panel.innerHTML = html;
+
+    var prevBtn = document.getElementById("prevBtn");
+    var nextBtn = document.getElementById("nextBtn");
+    if (prevBtn) prevBtn.addEventListener("click", function () { select(current - 1); });
+    if (nextBtn) nextBtn.addEventListener("click", function () { select(current + 1); });
+
+    var on = mountedStateFor(current);
+    mountedVal.textContent = on ? "true" : "false";
+    mountedDot.className = "mounted-dot" + (on ? " on" : "");
+  }
+
+  function select(i) {
+    if (i < 0 || i >= nodes.length) return;
+    current = i;
+    renderRail();
+    renderPanel();
+    panel.scrollTop = 0;
+  }
+
+  renderRail();
+  renderPanel();
+
+  // ---------------- QUIZ ----------------
+  var quizBank = [
+    {
+      q: "¿Qué método se ejecuta exactamente una sola vez, al crear el objeto State?",
+      options: ["build()", "didUpdateWidget()", "initState()", "setState()"],
+      correct: 2,
+      explain: "<b>initState()</b> se ejecuta una sola vez, inmediatamente después de que el State queda vinculado al BuildContext (mounted = true)."
+    },
+    {
+      q: "¿Cuál es el lugar correcto para acceder de forma segura a Theme.of(context) por primera vez?",
+      options: ["initState()", "el constructor del StatefulWidget", "didChangeDependencies() o build()", "dispose()"],
+      correct: 2,
+      explain: "Dentro de <b>initState()</b> el widget aún no está completamente conectado al árbol; hay que esperar a <b>didChangeDependencies()</b> o a <b>build()</b>."
+    },
+    {
+      q: "¿Qué ocurre si se llama a setState() después de que se ejecutó dispose()?",
+      options: ["Flutter lo ignora silenciosamente", "Se lanza una excepción en tiempo de ejecución", "Se vuelve a ejecutar initState()", "El widget se reconstruye normalmente"],
+      correct: 1,
+      explain: "Tras <b>dispose()</b>, mounted queda en false para siempre; llamar a setState() en ese punto lanza una excepción."
+    },
+    {
+      q: "¿Cuándo se invoca didUpdateWidget()?",
+      options: [
+        "Cada vez que se llama a setState()",
+        "Solo al destruir el widget",
+        "Cuando el padre reconstruye este widget con una nueva instancia del mismo tipo, en la misma posición del árbol",
+        "Nunca; es un método heredado sin uso"
+      ],
+      correct: 2,
+      explain: "Flutter reutiliza el objeto State existente y llama a <b>didUpdateWidget(oldWidget)</b> para avisar que la configuración cambió."
+    },
+    {
+      q: "¿Qué debe hacerse siempre en dispose() cuando el State usó un TextEditingController?",
+      options: ["Nada, se libera automáticamente", "Llamar a controlador.dispose() antes de super.dispose()", "Reasignarlo a null", "Llamarlo dentro de build()"],
+      correct: 1,
+      explain: "Hay que liberar el controlador explícitamente y luego llamar a <b>super.dispose()</b> al final, en ese orden."
+    },
+    {
+      q: "¿Qué representa la propiedad mounted?",
+      options: ["Si el widget tiene hijos", "Si el objeto State está actualmente asociado a un BuildContext activo en el árbol", "Si el widget es Stateless o Stateful", "Si el build() ya se ejecutó una vez"],
+      correct: 1,
+      explain: "<b>mounted</b> indica si el State sigue conectado al árbol; pasa a true tras createState() y a false definitivo tras dispose()."
+    },
+    {
+      q: "Durante un hot reload exitoso, ¿se vuelve a ejecutar initState()?",
+      options: ["Sí, siempre", "No, el estado existente se preserva (a diferencia de un hot restart)", "Solo si el widget es StatelessWidget", "Depende del sistema operativo"],
+      correct: 1,
+      explain: "El hot reload preserva el objeto State existente. Solo un <b>hot restart</b> destruye y recrea el árbol, ejecutando initState() de nuevo."
+    },
+    {
+      q: "¿Qué debe contener el argumento (callback) de setState()?",
+      options: ["Cualquier código, incluyendo peticiones de red asíncronas", "Únicamente la actualización síncrona de las variables de estado", "Solo instrucciones print()", "La llamada a build()"],
+      correct: 1,
+      explain: "El callback de setState() debe ser síncrono y contener solo la actualización de variables de estado; build() lo llama Flutter por su cuenta."
+    }
+  ];
+
+  var quizOrder = [];
+  var quizIdx = 0;
+  var quizScore = 0;
+  var answered = false;
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function startQuiz() {
+    quizOrder = shuffle(quizBank.map(function (_, i) { return i; }));
+    quizIdx = 0;
+    quizScore = 0;
+    renderQuiz();
+  }
+
+  function renderQuiz() {
+    var card = document.getElementById("quizCard");
+    var progress = document.getElementById("quizProgress");
+
+    if (quizIdx >= quizOrder.length) {
+      progress.textContent = "Completado";
+      card.innerHTML =
+        '<div class="quiz-done"><div class="score">' + quizScore + ' / ' + quizOrder.length + '</div>' +
+        '<p style="color:var(--ink-soft);margin-top:8px;">respuestas correctas</p>' +
+        '<div class="quiz-nav" style="justify-content:center;margin-top:24px;"><button id="restartBtn">Reintentar con otro orden</button></div></div>';
+      document.getElementById("restartBtn").addEventListener("click", startQuiz);
+      return;
+    }
+
+    progress.textContent = "Pregunta " + (quizIdx + 1) + " / " + quizOrder.length;
+    var item = quizBank[quizOrder[quizIdx]];
+    answered = false;
+
+    var html = '<p class="quiz-q">' + item.q + '</p><div class="quiz-opts">';
+    item.options.forEach(function (opt, i) {
+      html += '<button class="quiz-opt" data-i="' + i + '">' + opt + '</button>';
+    });
+    html += '</div><div class="quiz-explain" id="quizExplain"></div>';
+    html += '<div class="quiz-nav"><span></span><button id="quizNext" disabled>Siguiente →</button></div>';
+    card.innerHTML = html;
+
+    var opts = card.querySelectorAll(".quiz-opt");
+    opts.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (answered) return;
+        answered = true;
+        var chosen = parseInt(btn.getAttribute("data-i"), 10);
+        opts.forEach(function (b) {
+          b.disabled = true;
+          var bi = parseInt(b.getAttribute("data-i"), 10);
+          if (bi === item.correct) b.classList.add("correct");
+          else if (bi === chosen) b.classList.add("wrong");
+        });
+        if (chosen === item.correct) quizScore++;
+        var ex = document.getElementById("quizExplain");
+        ex.innerHTML = item.explain;
+        ex.classList.add("show");
+        document.getElementById("quizNext").disabled = false;
+      });
+    });
+
+    document.getElementById("quizNext").addEventListener("click", function () {
+      quizIdx++;
+      renderQuiz();
+    });
+  }
+
+  document.getElementById("quizShuffle").addEventListener("click", startQuiz);
+  startQuiz();
+
+  // ---------------- TABS ----------------
+  var tabDiagram = document.getElementById("tab-diagram");
+  var tabQuiz = document.getElementById("tab-quiz");
+  var viewDiagram = document.getElementById("view-diagram");
+  var viewQuiz = document.getElementById("view-quiz");
+
+  function showDiagram() {
+    tabDiagram.classList.add("active"); tabDiagram.setAttribute("aria-selected", "true");
+    tabQuiz.classList.remove("active"); tabQuiz.setAttribute("aria-selected", "false");
+    viewDiagram.classList.add("active"); viewQuiz.classList.remove("active");
+  }
+  function showQuiz() {
+    tabQuiz.classList.add("active"); tabQuiz.setAttribute("aria-selected", "true");
+    tabDiagram.classList.remove("active"); tabDiagram.setAttribute("aria-selected", "false");
+    viewQuiz.classList.add("active"); viewDiagram.classList.remove("active");
+  }
+  tabDiagram.addEventListener("click", showDiagram);
+  tabQuiz.addEventListener("click", showQuiz);
+})();
+</script>
+
+</body></html>
